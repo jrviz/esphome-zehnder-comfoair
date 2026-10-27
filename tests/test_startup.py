@@ -267,6 +267,42 @@ def run(climate):
             bus.receive_frame(0x1f000000u | (0x2au << 6) | 0x01, std::vector<uint8_t>(8, 0));
         '''},
     ])
+    if not climate:
+        # Polling is scheduled by the component, independent of climate; keep the climate runs short.
+        # First read after the given delay, then once per interval, with no read in between.
+        poll_response = "id(test_bus).receive_frame(0x1f000000u | (0x2au << 6) | 0x01, std::vector<uint8_t>(8, 0));"
+        actions.extend([
+            {"lambda": '''
+                id(test_bus).sent.clear();
+                id(comfoair).set_error_poll_interval(400);
+                id(comfoair).start_active_errors_polling(150);
+            '''},
+            {"delay": "80ms"},
+            {"lambda": '''
+                esphome::test_canbus::check(id(test_bus).sent.empty(), "no active errors read before the first delay");
+            '''},
+            {"delay": "170ms"},
+            {"lambda": f'''
+                const auto &sent = id(test_bus).sent;
+                esphome::test_canbus::check(sent.size() == 1 && sent[0].data[0] == 0x80 && sent[0].data[1] == 0x03,
+                    "the first active errors read follows the first delay");
+                {poll_response}
+            '''},
+            {"delay": "200ms"},
+            {"lambda": '''
+                esphome::test_canbus::check(id(test_bus).sent.size() == 1, "no extra read between polling intervals");
+            '''},
+            {"delay": "250ms"},
+            {"lambda": f'''
+                esphome::test_canbus::check(id(test_bus).sent.size() == 2, "active errors are read once per interval");
+                {poll_response}
+                id(comfoair).stop_active_errors_polling();
+            '''},
+            {"delay": "400ms"},
+            {"lambda": '''
+                esphome::test_canbus::check(id(test_bus).sent.size() == 2, "a stopped poll is not read again");
+            '''},
+        ])
     actions.append({
         "lambda": '''
             esphome::test_canbus::check(global_preferences->sync(),

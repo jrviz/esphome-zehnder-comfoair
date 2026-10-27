@@ -24,12 +24,20 @@ namespace zehnder_comfoair_q
 
         if (this->error_poll_interval_ > 0 && this->error_poll_interval_ != SCHEDULER_DONT_RUN)
         {
-            // stagger the first errors poll away from the initial PDO burst above
-            this->set_timeout(1000 * 15, [this]()
-                              { this->request_active_errors(); });
-            this->set_interval("active_errors_poll", this->error_poll_interval_, [this]()
-                               { this->request_active_errors(); });
+            // the first read comes after the initial PDO burst above, then every error_poll_interval
+            this->start_active_errors_polling(1000 * 15);
         }
+    }
+
+    void ZehnderComfoAirQ::start_active_errors_polling(uint32_t first_delay_ms)
+    {
+        // A re-armed timeout rather than set_interval, as ESPHome runs an interval once after a random
+        // offset of up to 5 s, which would add an unscheduled read right after boot.
+        this->set_timeout("active_errors_poll", first_delay_ms, [this]()
+                          {
+                              this->request_active_errors();
+                              this->start_active_errors_polling(this->error_poll_interval_);
+                          });
     }
 
     void ZehnderComfoAirQ::update()

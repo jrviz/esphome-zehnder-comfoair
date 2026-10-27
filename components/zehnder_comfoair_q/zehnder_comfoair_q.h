@@ -74,6 +74,10 @@ namespace zehnder_comfoair_q
         void request_all_pdos();
         void request_pdo(uint16_t pdo_id);
         void request_active_errors();
+        // Reads the active errors after `first_delay_ms` and then every error_poll_interval (setup()
+        // starts it 15 s after boot when polling is enabled).
+        void start_active_errors_polling(uint32_t first_delay_ms);
+        void stop_active_errors_polling() { this->cancel_timeout("active_errors_poll"); }
         // Clears the unit's errors (RESETALLERRORS) and then re-reads them so Home Assistant sees the result.
         void reset_all_errors();
 
