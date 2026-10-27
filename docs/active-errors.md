@@ -1,19 +1,31 @@
 # Optional active error reporting
 
 Include `packages/active_errors.yml` alongside the normal base/dashboard package.
-The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) every
-`error_poll_interval` (default 5 minutes, first read 15 s after boot) and exposed as:
+The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) and exposed as:
 
 - **Active Errors** (text sensor): `No active errors`, or each active error as
   `<id>: <description> (<code>)`, separated by `; `.
 - **Has Active Errors** (binary sensor, `problem` device class): on while any error is active.
-
 - **Reset All Errors** (button, diagnostic): sends RMI `RESETALLERRORS` (`82 03 01`) and, if
   the unit answers, reads the active errors straight back so the two entities above update
   at once. It does nothing on boot and only acts when pressed.
 
-Nothing is polled unless the package is included. Set `error_poll_interval: never` to
-include the entities but not poll. The read is a single GET command; it changes no setting.
+## Polling
+
+`error_poll_interval` sets how often the errors are read. The default is `5min`, with the first
+read 15 s after boot. Override it in your device YAML, on the same component the package extends:
+
+```yaml
+zehnder_comfoair_q:
+  error_poll_interval: 15min
+```
+
+**`error_poll_interval: never` disables polling.** The entities are still created, but the errors
+are never read periodically, so **Active Errors** and **Has Active Errors** only update when a
+read is triggered, which happens after pressing **Reset All Errors**. To remove the feature
+completely (no entities, no polling), leave `packages/active_errors.yml` out.
+
+The read is a single GET command and changes no setting.
 
 ## Wording
 
