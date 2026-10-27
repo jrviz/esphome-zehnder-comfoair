@@ -12,6 +12,16 @@ zehnder_comfoair_q:
     id: has_active_errors
     name: "Has Active Errors"
 
+button:
+  # RMI RESETALLERRORS, then reads the errors back so the entities above update at once.
+  - platform: template
+    id: reset_all_errors_button
+    name: "Reset All Errors"
+    icon: mdi:alert-circle-check-outline
+    entity_category: diagnostic
+    on_press:
+      - lambda: id(comfoair)->reset_all_errors();
+
 canbus:
   - id: !extend ${comfoair_canbus_id}
     on_frame:

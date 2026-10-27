@@ -13,7 +13,7 @@ Scope: production `ZehnderComfoAirQ` public methods, CAN dispatch and YAML entit
 | Thermostat remains functional after synchronization | Real temperature PDOs, modes and minimum timers; protects idle guard without private trigger tests |
 | Command framing and sequence | Added public-method/frame tests; no existing lifecycle case reaches 8/9/14/15-byte boundaries or full rollover |
 | RTR request ordering/non-overlap/restart/empty list | Added real-scheduler tests; existing command capture intentionally excluded RTRs |
-| Opt-in active errors over RMI (`active_errors.yml`) | Real request queue, fragment reassembly and entities: exact `80 03 01` frame, ordered fragments, ignored frames from other nodes, error/out-of-order/timeout paths, UTF-8-safe 255 character state |
+| Opt-in active errors over RMI (`active_errors.yml`) | Real request queue, fragment reassembly and entities: exact `80 03 01` frame, ordered fragments, ignored frames from other nodes, error/out-of-order/timeout paths, UTF-8-safe 255 character state; the real Reset All Errors button sends `82 03 01` and reads back only after a successful reset |
 
 Retain the existing cases. Repeated fan cases vary actual level/transition/order rather than duplicating an implementation predicate. The fake only owns physical I/O and does not implement ESPHome state, callbacks, timing or restore. No tests or production seams were removed: there is no evidence that deleting them improves confidence. No test-only production export is added.
 

@@ -388,6 +388,24 @@ namespace zehnder_comfoair_q
                                });
     }
 
+    void ZehnderComfoAirQ::reset_all_errors()
+    {
+        ESP_LOGD(TAG, "Resetting all errors (RESETALLERRORS)");
+
+        this->send_rmi_request({RMI_CMD_RESET_ALL_ERRORS, RMI_UNIT_ERROR, 0x01 /* SubUnit */}, [this](bool success, const std::vector<uint8_t> &response)
+                               {
+                                   if (!success)
+                                   {
+                                       ESP_LOGW(TAG, "Failed to reset errors");
+                                       return;
+                                   }
+
+                                   // errors are only polled periodically, so read them back straight away
+                                   // rather than waiting for the next error_poll_interval
+                                   this->request_active_errors();
+                               });
+    }
+
     std::string ZehnderComfoAirQ::format_active_errors_(const std::vector<uint8_t> &data, std::vector<uint16_t> &active_error_ids)
     {
         for (size_t byte_index = 0; byte_index < data.size(); byte_index++)

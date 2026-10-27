@@ -8,6 +8,10 @@ The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) every
   `<id>: <description> (<code>)`, separated by `; `.
 - **Has Active Errors** (binary sensor, `problem` device class): on while any error is active.
 
+- **Reset All Errors** (button, diagnostic): sends RMI `RESETALLERRORS` (`82 03 01`) and, if
+  the unit answers, reads the active errors straight back so the two entities above update
+  at once. It does nothing on boot and only acts when pressed.
+
 Nothing is polled unless the package is included. Set `error_poll_interval: never` to
 include the entities but not poll. The read is a single GET command; it changes no setting.
 

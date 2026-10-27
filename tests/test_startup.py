@@ -226,6 +226,32 @@ def run(climate):
                   "a state over 255 characters is shortened at a character boundary");
         '''},
         {"lambda": '''
+            using esphome::test_canbus::check;
+            auto &bus = *id(test_bus);
+            const uint32_t unit_to_us = 0x1f000000u | (0x2au << 6) | 0x01;
+            const uint32_t unit_to_us_error = unit_to_us | (1u << 15);
+
+            // The real Reset All Errors button: RESETALLERRORS, then an immediate read-back.
+            bus.sent.clear();
+            id(reset_all_errors_button).press();
+            check(bus.sent.size() == 1 && bus.sent[0].can_data_length_code == 3 &&
+                  bus.sent[0].data[0] == 0x82 && bus.sent[0].data[1] == 0x03 && bus.sent[0].data[2] == 0x01 &&
+                  (bus.sent[0].can_id & 0x3f) == 0x2a && ((bus.sent[0].can_id >> 6) & 0x3f) == 1 &&
+                  ((bus.sent[0].can_id >> 16) & 1) == 1,
+                  "Reset All Errors sends RESETALLERRORS 82 03 01 to the unit");
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>{0x00});
+            check(bus.sent.size() == 2 && bus.sent[1].can_data_length_code == 3 &&
+                  bus.sent[1].data[0] == 0x80 && bus.sent[1].data[1] == 0x03 && bus.sent[1].data[2] == 0x01,
+                  "a successful reset is followed by reading the active errors back");
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>(8, 0));
+            check(id(active_errors).state == "No active errors" && !id(has_active_errors).state,
+                  "the read-back after a reset updates the entities");
+            bus.sent.clear();
+            id(reset_all_errors_button).press();
+            bus.receive_frame(unit_to_us_error, std::vector<uint8_t>{0x0b});
+            check(bus.sent.size() == 1, "a failed reset is not followed by a read-back");
+        '''},
+        {"lambda": '''
             id(rmi_timeout_result) = 0;
             id(comfoair).send_rmi_request({0x80, 0x03, 0x01},
                 [](bool success, const std::vector<uint8_t> &) { id(rmi_timeout_result) = success ? 1 : 2; }, 200);

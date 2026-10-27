@@ -16,6 +16,7 @@ namespace zehnder_comfoair_q
     // RMI units and ERROR unit commands (see PROTOCOL-RMI.md in aiocomfoconnect)
     static const uint8_t RMI_UNIT_ERROR = 0x03;
     static const uint8_t RMI_CMD_GET_ACTIVE_ERRORS = 0x80;
+    static const uint8_t RMI_CMD_RESET_ALL_ERRORS = 0x82;
 
     enum VentilationLevel : uint8_t
     {
@@ -73,6 +74,8 @@ namespace zehnder_comfoair_q
         void request_all_pdos();
         void request_pdo(uint16_t pdo_id);
         void request_active_errors();
+        // Clears the unit's errors (RESETALLERRORS) and then re-reads them so Home Assistant sees the result.
+        void reset_all_errors();
 
         void set_level(uint8_t level);
         void set_level_float(float state);
