@@ -10,6 +10,13 @@ The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) and ex
   the unit answers, reads the active errors straight back so the two entities above update
   at once. It does nothing on boot and only acts when pressed.
 
+**Warnings count.** Has Active Errors is on for every active entry, including the status and
+warning flags the unit raises as well as faults, for example the filter warnings (77–79), standby
+(80), bypass in manual mode (89), hood active (96) and the status flags 97 and 100. This is
+deliberate: a filter change that is due keeps the sensor on as a reminder. To react to only some of
+them, match the code shown in Active Errors (for example `Filter_warning_flag`) in an automation or
+template sensor.
+
 ## Polling
 
 `error_poll_interval` sets how often the errors are read. The default is `5min`, with the first
