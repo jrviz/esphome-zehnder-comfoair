@@ -24,6 +24,19 @@ numbering. The manual does not list IDs 63–65, 70–73 and 82–88; those keep
 the aiocomfoconnect protocol notes and are unverified. An ID with no description shows as
 `Unknown error`.
 
+## Language
+
+English is the default. The language is a **compile-time** choice for devices with little
+memory: `error_language: <code>` on the `zehnder_comfoair_q:` block selects one
+`error_descriptions_<code>.h` and only that file is compiled into the firmware. Other language
+files in the component folder are ignored, so they cost no flash or RAM, and the text is
+constant data held in flash. An unknown code is rejected when the config is validated.
+
+To add a language, copy `components/zehnder_comfoair_q/error_descriptions_en.h` to
+`error_descriptions_<code>.h` in the same folder (it must stay flat beside the other component
+files, as ESPHome's local component copy does not include subfolders), translate the strings, keep
+the `#ifdef` wrapper, and set `error_language: <code>`. No C++ changes are needed.
+
 Home Assistant rejects entity states longer than 255 characters, so a very long list is
 shortened with `...`. The full text is logged at debug level.
 

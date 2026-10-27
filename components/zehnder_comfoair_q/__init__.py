@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import binary_sensor, text_sensor
@@ -23,6 +25,16 @@ CONF_ERROR_POLL_INTERVAL = "error_poll_interval"
 CONF_ACTIVE_ERRORS_TEXT_SENSOR = "active_errors_text_sensor"
 CONF_HAS_ACTIVE_ERRORS_BINARY_SENSOR = "has_active_errors_binary_sensor"
 
+# Selects which error_descriptions_<code>.h gets compiled in. The available codes are discovered from
+# the files next to this one, so adding a language is just adding a file (see error_descriptions_en.h).
+# Only the selected file is included in the firmware.
+CONF_ERROR_LANGUAGE = "error_language"
+_ERROR_DESCRIPTIONS_PREFIX = "error_descriptions_"
+ERROR_LANGUAGES = sorted(
+    p.stem[len(_ERROR_DESCRIPTIONS_PREFIX):]
+    for p in Path(__file__).parent.glob(f"{_ERROR_DESCRIPTIONS_PREFIX}*.h")
+)
+
 
 CONFIG_SCHEMA = (
     cv.Schema(
@@ -36,6 +48,7 @@ CONFIG_SCHEMA = (
             cv.Optional(CONF_REQUEST_DELAY, default="100ms"): cv.positive_time_period_milliseconds,
             cv.Optional(CONF_REQUEST_LOCAL_NODE_ID, default=0x2a): cv.int_range(min=0x01, max=0x3f),
             cv.Optional(CONF_ERROR_POLL_INTERVAL): cv.update_interval,
+            cv.Optional(CONF_ERROR_LANGUAGE, default="en"): cv.one_of(*ERROR_LANGUAGES, lower=True),
             cv.Optional(CONF_ACTIVE_ERRORS_TEXT_SENSOR): text_sensor.text_sensor_schema(
                 icon="mdi:alert-circle",
                 entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -65,6 +78,11 @@ async def to_code(config):
 
     if CONF_ERROR_POLL_INTERVAL in config:
         cg.add(var.set_error_poll_interval(config[CONF_ERROR_POLL_INTERVAL]))
+
+    cg.add_define(
+        "ZEHNDER_ERROR_DESCRIPTIONS_HEADER",
+        f"{_ERROR_DESCRIPTIONS_PREFIX}{config[CONF_ERROR_LANGUAGE]}.h",
+    )
 
     if CONF_ACTIVE_ERRORS_TEXT_SENSOR in config:
         sens = await text_sensor.new_text_sensor(config[CONF_ACTIVE_ERRORS_TEXT_SENSOR])

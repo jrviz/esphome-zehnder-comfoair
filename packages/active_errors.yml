@@ -5,6 +5,7 @@ substitutions:
 
 zehnder_comfoair_q:
   error_poll_interval: 5min
+  # error_language: en # compile-time choice of error_descriptions_<code>.h in components/zehnder_comfoair_q/
   active_errors_text_sensor:
     id: active_errors
     name: "Active Errors"
