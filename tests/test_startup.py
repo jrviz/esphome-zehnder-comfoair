@@ -156,8 +156,9 @@ def run(climate):
                     check(!id(active_errors).has_state(), "nothing is published before the last fragment");
             }
             check(id(active_errors).state ==
-                      "21: Two or more temperature sensors are out of boundaries (HRU_T_FIRE_ERR); "
-                      "77: Filters must be replaced now (Filter_alarm_flag)" &&
+                      "21: DANGER! OVERHEATING! Two or more sensors are detecting an incorrect temperature. "
+                      "Ventilation has stopped.; "
+                      "77: The filters of the Ventilation Unit must be replaced now" &&
                   id(has_active_errors).state,
                   "a multi-frame response lists each active error and sets the problem sensor");
 
@@ -204,9 +205,9 @@ def run(climate):
             check(called && !success, "a fragment out of order fails the request");
             bus.receive_frame(unit_to_us_multi, std::vector<uint8_t>{0x80, 0xaa});  // late fragment, nothing in flight
 
-            // IDs 21, 35 and 39 make the text exceed 255 bytes right inside the two-byte phi of ID 39.
+            // IDs 24, 35 and 102 make the text exceed 255 bytes right inside the three-byte en dash of ID 102.
             id(comfoair).request_active_errors();
-            for (const auto &frame : fragments(errors({21, 35, 39})))
+            for (const auto &frame : fragments(errors({24, 35, 102})))
                 bus.receive_frame(unit_to_us_multi, frame);
             const std::string text = id(active_errors).state;
             bool valid_utf8 = true;

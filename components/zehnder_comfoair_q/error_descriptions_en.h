@@ -3,12 +3,17 @@
 // Human-readable descriptions for each active-error bit (bit index == error ID), firmware 1.4.0+
 // numbering. See PROTOCOL-RMI.md "ERROR Unit commands" in michaelarnauts/aiocomfoconnect.
 //
-// Source of truth for the wording: Zehnder "ComfoConnect PRO Modbus TCP/RTU installation" manual
-// (Document Revision 137), section 9.5 "ComfoAirQ alarm codes", Table 2. Each text there is used
-// verbatim as "<description> (<code>)", including its quirks (e.g. "Bypass is manual used."). The
-// manual lists IDs 51 and 55 twice (identical rows). Entries marked "NOT in Zehnder manual" are
-// not covered by that table; they are kept from the aiocomfoconnect protocol notes and unverified.
-// The no_active_errors / unknown_error strings are ours, not from the manual.
+// Source of the wording: the ERRORS table (firmware 1.4.0+ numbering) in
+// aiocomfoconnect/const.py of michaelarnauts/aiocomfoconnect, used verbatim. It is the master text.
+// Its descriptions say which part failed (for example "extract air fan", "supply air temperature
+// sensor"), which is why it is preferred.
+//
+// Cross-checked against section 9.5 "ComfoAirQ alarm codes" (Table 2) of Zehnder's "ComfoConnect PRO
+// Modbus TCP/RTU installation" manual (revision 137): every ID the manual lists is in this table, but
+// the manual words some of them differently (it names sensors by designation, T11, P12, F12, ... and
+// calls ID 80 "Standby is active" where this table says "Service mode is active") and it has no entry
+// for IDs 63-65, 70-73 and 82-88.
+// The no_active_errors / unknown_error strings are ours.
 //
 // To add a new language:
 //   1. Copy this file to error_descriptions_<code>.h (e.g. error_descriptions_nl.h) IN THIS SAME
@@ -34,84 +39,84 @@ namespace zehnder_comfoair_q
     namespace error_descriptions
     {
         static const Entry ENTRIES[] = {
-            {21, "Two or more temperature sensors are out of boundaries (HRU_T_FIRE_ERR)"},
-            {22, "Temperature too high for HRU (T_HRU_ERR)"},
-            {23, "Temperature sensor T11 value exceeded limit too often (T_11_ERR)"},
-            {24, "Temperature sensor T11 value exceeds limit (T_11_LIMIT_ERR)"},
-            {25, "Temperature sensor T12 value exceeded limit too often (T_12_ERR)"},
-            {26, "Temperature sensor T12 value exceeds limit (T_12_LIMIT_ERR)"},
-            {27, "Temperature sensor T20 value exceeded limit too often (T_20_ERR)"},
-            {28, "Temperature sensor T20 value exceeds limit (T_20_LIMIT_ERR)"},
-            {29, "Temperature sensor T21 value exceeded limit too often (T_21_ERR)"},
-            {30, "Temperature sensor T21 value exceeds limit (T_21_LIMIT_ERR)"},
-            {31, "Temperature sensor T22 value exceeded limit too often (T_22_ERR)"},
-            {32, "Temperature sensor T22 value exceeds limit (T_22_LIMIT_ERR)"},
-            {33, "HRU has not been initialized (HRU_INIT_ERR)"},
-            {34, "The front door is open (HRU_FRONT_OPEN_ERR)"},
-            {35, "Preheater is present, but its location (left/right) does not match the orientation of the HRU (H_21_release_ERR)"},
-            {37, "Preheater fails to deliver requested power (H_21_P_ERR)"},
-            {38, "Preheater fails to deliver requested power in required ratio (H_21_P_ratio_ERR)"},
-            {39, "Humidity sensor ϕ11 value exceeded limit too often (ϕ_11_ERR)"},
-            {41, "Humidity sensor ϕ12 value exceeded limit too often (ϕ_12_ERR)"},
-            {43, "Humidity sensor ϕ20 value exceeded limit too often (ϕ_20_ERR)"},
-            {45, "Humidity sensor ϕ21 value exceeded limit too often (ϕ_21_ERR)"},
-            {47, "Humidity sensor ϕ22 value exceeded limit too often (ϕ_22_ERR)"},
-            {49, "Pressure sensor P12 value exceeded limit too often (P_12_ERR)"},
-            {50, "Pressure sensor P22 value exceeded limit too often (P_22_ERR)"},
-            {51, "Speed of F12 fan exceeded limit too often (F_12_s_ERR)"},
-            {52, "Speed of F22 fan exceeded limit too often (F_22_s_ERR)"},
-            {53, "Static pressure of sensor P12 exceeded limit too often (Ptot_12_s_ERR)"},
-            {54, "Static pressure of sensor P22 exceeded limit too often (Ptot_22_s_ERR)"},
-            {55, "Failed to reach required F12 fan speed too often (F_12_s_set_ERR)"},
-            {56, "Failed to reach required F22 fan speed too often (F_22_s_set_ERR)"},
-            {57, "Failed to reach required mass flow for F12 fan too often (Qm_12_set_ERR)"},
-            {58, "Failed to reach required mass flow for F22 fan too often (Qm_22_set_ERR)"},
-            {59, "Failed to reach required temperature too often for outdoor air after preheater (T_21_set_ERR)"},
-            {60, "Failed to reach required temperature too often for supply air (T_22_set_ERR)"},
-            {61, "Supply air temperature (sensor T22) is too low too often (T_22_frost_ERR)"},
-            {62, "Unbalance occurred too often beyond tolerance levels in past period (Unbalance_ERR)"},
-            {63, "Postheater was present, but is no longer detected (POSTHEAT_CONNECT ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {64, "Temperature sensor value for supply air ComfoCool exceeded limit too often (CCOOL_TEMP ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {65, "Room temperature sensor was present, but is no longer detected (T_ROOM_PRES ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {66, "RF Communication hardware was present, but is no longer detected (Present_RF_ERR)"},
-            {67, "Option board was present, but is no longer detected (Present_IO_ERR)"},
-            {68, "Preheater was present, but is no longer detected (Present_H_21_ERR)"},
-            {69, "Post heater was present, but is no longer detected (Present_H_23_ERR)"},
-            {70, "Analog input 1 was present, but is no longer detected (ANALOG_1_PRES ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {71, "Analog input 2 was present, but is no longer detected (ANALOG_2_PRES ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {72, "Analog input 3 was present, but is no longer detected (ANALOG_3_PRES ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {73, "Analog input 4 was present, but is no longer detected (ANALOG_4_PRES ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {74, "Cooker hood was present, but is no longer detected (Present_Hood_ERR)"},
-            {75, "Comfo Cool was present, but is no longer detected (Present_CCOOL_ERR)"},
-            {76, "ComfoFond was present, but is no longer detected (Present_G_ERR)"},
-            {77, "Filters must be replaced now (Filter_alarm_flag)"},
-            {78, "The external filter input is high (Filter_ext_ERR)"},
-            {79, "Filters must be ordered now, because the remaining filter lifetime is limited (Filter_warning_flag)"},
-            {80, "Standby is active (Standby_ERR)"},
-            {81, "Preheater does not communicate reliably (H_21_COMM_ERR)"},
-            {82, "ComfoHood temperature error (HOOD_TEMP ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {83, "Postheater temperature error (POSTHEAT_TEMP ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {84, "Outdoor temperature of ComfoFond error (GROUND_HEAT_TEMP ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {85, "Analog input 1 error (ANALOG_1_IN ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {86, "Analog input 2 error (ANALOG_2_IN ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {87, "Analog input 3 error (ANALOG_3_IN ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {88, "Analog input 4 error (ANALOG_4_IN ERROR)"}, // NOT in Zehnder manual 9.5 - unverified, kept from aiocomfoconnect
-            {89, "Bypass is manual used. (T_22_MANUAL_ERR)"},
-            {90, "ComfoCool is overheated (CC_OVERHEAT_ERR)"},
-            {91, "ComfoCool compressor error (CC_COMP_ERR)"},
-            {92, "ComfoCool room temperature out of bounds (CC_T_10_ERR)"},
-            {93, "ComfoCool compressor temperature out of bounds (CC_T_13_ERR)"},
-            {94, "ComfoCool supply temperature out of bounds (CC_T_23_ERR)"},
-            {95, "Hood temperature is too high (T_hood_ERR)"},
-            {96, "Hood is activated (IO_hood_duty_ERR)"},
-            {97, "Status flag (QM_Constraint_min_ERR)"},
-            {98, "Flow too low for preheater (H_21_qm_min_ERR)"},
-            {99, "Configuration error (config_ERR)"},
-            {100, "Warning that error analysis is in progress (analysis_busy_warning)"},
-            {101, "Error on the ComfoNet bus (ComfoNet_ERR)"},
-            {102, "The number of CO2 sensors on a controller has decreased – one or more sensors are no longer detected (CO2_SENS_COUNT_ERR)"},
-            {103, "More than 8 sensors are detected in a zone (CO2_SENS_TOO_MANY_ERR)"},
-            {104, "General CO2 sensor error (CO2_SENS_GENERAL_ERR)"},
+            {21, "DANGER! OVERHEATING! Two or more sensors are detecting an incorrect temperature. Ventilation has stopped."},
+            {22, "Temperature too high for ComfoAir Q (TEMP_HRU ERROR)"},
+            {23, "The extract air temperature sensor has a malfunction (SENSOR_ETA ERROR)"},
+            {24, "The extract air temperature sensor is detecting an incorrect temperature (TEMP_SENSOR_ETA ERROR)"},
+            {25, "The exhaust air temperature sensor has a malfunction (SENSOR_EHA ERROR)"},
+            {26, "The exhaust air temperature sensor is detecting an incorrect temperature (TEMP_SENSOR_EHA ERROR)"},
+            {27, "The outdoor air temperature sensor has a malfunction (SENSOR_ODA ERROR)"},
+            {28, "The outdoor air temperature sensor is detecting an incorrect temperature (TEMP_SENSOR_ODA ERROR)"},
+            {29, "The pre-conditioned outdoor air temperature sensor has a malfunction"},
+            {30, "The pre-conditioned outdoor air temperature sensor is detecting an incorrect temperature (TEMP_SENSOR_P-ODA ERROR)"},
+            {31, "The supply air temperature sensor has a malfunction (SENSOR_SUP ERROR)"},
+            {32, "The supply air temperature sensor is detecting an incorrect temperature (TEMP_SENSOR_SUP ERROR)"},
+            {33, "The Ventilation Unit has not been commissioned (INIT ERROR)"},
+            {34, "The front door is open"},
+            {35, "The Pre-heater is present, but not in the correct position (right/left). (PREHEAT_LOCATION ERROR)"},
+            {37, "The pre-heater has a malfunction (PREHEAT ERROR)"},
+            {38, "The pre-heater has a malfunction (PREHEAT ERROR)"},
+            {39, "The extract air humidity sensor has a malfunction (SENSOR_ETA ERROR)"},
+            {41, "The exhaust air humidity sensor has a malfunction (SENSOR_EHA ERROR)"},
+            {43, "The outdoor air humidity sensor has a malfunction (SENSOR_ODA ERROR)"},
+            {45, "The outdoor air humidity sensor has a malfunction (SENSOR_P-ODA ERROR)"},
+            {47, "The supply air humidity sensor has a malfunction (SENSOR_SUP ERROR)"},
+            {49, "The exhaust air flow sensor has a malfunction (SENSOR_EHA ERROR)"},
+            {50, "The supply air flow sensor has a malfunction (SENSOR_SUP ERROR)"},
+            {51, "The extract air fan has a malfunction (FAN_EHA ERROR)"},
+            {52, "The supply air fan has a malfunction (FAN_SUP ERROR)"},
+            {53, "Exhaust air pressure too high. Check air outlets, ducts and filters for pollution and obstructions. Check valve settings (EXT_PRESSURE_EHA ERROR)"},
+            {54, "Supply air pressure too high. Check air outlets, ducts and filters for pollution and obstructions. Check valve settings. (EXT_PRESSURE_SUP ERROR)"},
+            {55, "The extract air fan has a malfunction (FAN_EHA ERROR)"},
+            {56, "The supply air fan has a malfunction (FAN_SUP ERROR)"},
+            {57, "The exhaust air flow is not reaching its set point (AIRFLOW_EHA ERROR)"},
+            {58, "The supply air flow is not reaching its set point (AIRFLOW_SUP ERROR)"},
+            {59, "Failed to reach required temperature too often for outdoor air after pre-heater (TEMPCONTROL_P-ODA ERROR)"},
+            {60, "Failed to reach required temperature too often for supply air. The modulating by-pass may have a malfunction. (TEMPCONTROL_SUP ERROR)"},
+            {61, "Supply air temperature is too low too often (TEMP_SUP_MIN ERROR)"},
+            {62, "Unbalance occurred too often beyond tolerance levels in past period (UNBALANCE ERROR)"},
+            {63, "Postheater was present, but is no longer detected (POSTHEAT_CONNECT ERROR)"},
+            {64, "Temperature sensor value for supply air ComfoCool exceeded limit too often (CCOOL_TEMP ERROR)"},
+            {65, "Room temperature sensor was present, but is no longer detected (T_ROOM_PRES ERROR)"},
+            {66, "RF Communication hardware was present, but is no longer detected (RF_PRES ERROR)"},
+            {67, "Option Box was present, but is no longer detected (OPTION_BOX CONNECT ERROR)"},
+            {68, "Pre-heater was present, but is no longer detected (PREHEAT_PRES ERROR)"},
+            {69, "Postheater was present, but is no longer detected (POSTHEAT_CONNECT ERROR)"},
+            {70, "Analog input 1 was present, but is no longer detected (ANALOG_1_PRES ERROR)"},
+            {71, "Analog input 2 was present, but is no longer detected (ANALOG_2_PRES ERROR)"},
+            {72, "Analog input 3 was present, but is no longer detected (ANALOG_3_PRES ERROR)"},
+            {73, "Analog input 4 was present, but is no longer detected (ANALOG_4_PRES ERROR)"},
+            {74, "ComfoHood was present, but is no longer detected (HOOD_CONNECT ERROR)"},
+            {75, "ComfoCool was present, but is no longer detected (CCOOL_CONNECT ERROR)"},
+            {76, "ComfoFond was present, but is no longer detected (GROUND_HEAT_CONNECT ERROR)"},
+            {77, "The filters of the Ventilation Unit must be replaced now"},
+            {78, "It is necessary to replace or clean the external filter"},
+            {79, "Order new filters now, because the remaining filter life time is limited"},
+            {80, "Service mode is active (SERVICE MODE)"},
+            {81, "Preheater has no communication with the ComfoAir unit (PREHEAT ERROR , 1081)"},
+            {82, "ComfoHood temperature error (HOOD_TEMP ERROR)"},
+            {83, "Postheater temperature error (POSTHEAT_TEMP ERROR)"},
+            {84, "Outdoor temperature of ComfoFond error (GROUND_HEAT_TEMP ERROR)"},
+            {85, "Analog input 1 error (ANALOG_1_IN ERROR)"},
+            {86, "Analog input 2 error (ANALOG_2_IN ERROR)"},
+            {87, "Analog input 3 error (ANALOG_3_IN ERROR)"},
+            {88, "Analog input 4 error (ANALOG_4_IN ERROR)"},
+            {89, "Bypass is in manual mode"},
+            {90, "ComfoCool is overheating"},
+            {91, "ComfoCool compressor error (CCOOL_COMPRESSOR ERROR)"},
+            {92, "ComfoCool room temperature sensor error (CCOOL_TEMP ERROR)"},
+            {93, "ComfoCool condensor temperature sensor error (CCOOL_TEMP ERROR)"},
+            {94, "ComfoCool supply air temperature sensor error (CCOOL_TEMP ERROR)"},
+            {95, "ComfoHood temperature is too high (HOOD_TEMP ERROR)"},
+            {96, "ComfoHood is activated"},
+            {97, "QM_Constraint_min_ERR"},
+            {98, "H_21_qm_min_ERR"},
+            {99, "Configuration error"},
+            {100, "Error analysis is in progress…"},
+            {101, "ComfoNet Error"},
+            {102, "The number of CO2 sensors has decreased – one or more sensors are no longer detected"},
+            {103, "More than 8 sensors detected in a zone"},
+            {104, "CO₂ Sensor C error"},
         };
 
         static const Table TABLE = {

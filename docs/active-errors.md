@@ -4,7 +4,7 @@ Include `packages/active_errors.yml` alongside the normal base/dashboard package
 The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) and exposed as:
 
 - **Active Errors** (text sensor): `No active errors`, or each active error as
-  `<id>: <description> (<code>)`, separated by `; `.
+  `<id>: <description>`, separated by `; `.
 - **Has Active Errors** (binary sensor, `problem` device class): on while any error is active.
 - **Reset All Errors** (button, diagnostic): sends RMI `RESETALLERRORS` (`82 03 01`) and, if
   the unit answers, reads the active errors straight back so the two entities above update
@@ -34,13 +34,12 @@ packages:
 ```
 
 **Warnings count.** Has Active Errors is on for every active entry, including the status and
-warning flags the unit raises as well as faults, for example the filter warnings (77–79), standby
-(80), bypass in manual mode (89), hood active (96) and the status flags 97 and 100. This is
+warning flags the unit raises as well as faults, for example the filter warnings (77–79), service
+mode (80), bypass in manual mode (89), hood active (96) and the status flags 97 and 100. This is
 deliberate: a filter change that is due keeps the sensor on as a reminder. To react to only some of
-them, match the code shown in Active Errors (for example `Filter_warning_flag`) in an automation or
-template sensor.
+them, match the ID at the start of an entry (for example `79:`) in an automation or template sensor.
 
-ID 100 (`analysis_busy_warning`, "error analysis is in progress") is transient: the unit raises it
+ID 100 ("Error analysis is in progress…") is transient: the unit raises it
 while it checks its errors, after **Reset All Errors** and at power-up until its initialisation is
 complete, so Has Active Errors can be on briefly then. A reset does not clear warnings that describe
 a condition, such as the filter flag; those stay on until the condition is gone, for example after the
@@ -49,9 +48,9 @@ filters are changed.
 ## Using the list in Home Assistant
 
 Several errors can be active at once, so Active Errors is one string with the entries in ID order,
-separated by `; ` (no description contains that separator). For anything more specific, build template
-sensors in Home Assistant from it. Replace the entity ID with yours, and add them to your Home
-Assistant configuration (not to the ESPHome device):
+separated by `; ` (no description contains that separator), each starting with its ID and a colon. For
+anything more specific, build template sensors in Home Assistant from it. Replace the entity ID with
+yours, and add them to your Home Assistant configuration (not to the ESPHome device):
 
 ```yaml
 template:
@@ -61,9 +60,7 @@ template:
         unique_id: mvhr_filter_change_due
         device_class: problem
         availability: "{{ states('sensor.zehnder_comfoair_q_active_errors') not in ['unknown', 'unavailable'] }}"
-        state: >
-          {% set t = states('sensor.zehnder_comfoair_q_active_errors') %}
-          {{ 'Filter_warning_flag' in t or 'Filter_alarm_flag' in t }}
+        state: "{{ states('sensor.zehnder_comfoair_q_active_errors') is search('(^|; )(77|79):') }}"
 
       # On only for real faults, ignoring the status and warning flags
       - name: "MVHR fault"
@@ -71,11 +68,10 @@ template:
         device_class: problem
         availability: "{{ states('sensor.zehnder_comfoair_q_active_errors') not in ['unknown', 'unavailable'] }}"
         state: >
-          {% set ignore = ['Filter_alarm_flag', 'Filter_ext_ERR', 'Filter_warning_flag', 'Standby_ERR',
-                           'T_22_MANUAL_ERR', 'IO_hood_duty_ERR', 'QM_Constraint_min_ERR', 'analysis_busy_warning'] %}
+          {% set ignore = [77, 78, 79, 80, 89, 96, 97, 100] %}
           {% set ns = namespace(faults=0) %}
           {% for entry in states('sensor.zehnder_comfoair_q_active_errors').split('; ') if entry != 'No active errors' %}
-            {% if not (ignore | select('in', entry) | list) %}
+            {% if (entry.split(':')[0] | int(0)) not in ignore %}
               {% set ns.faults = ns.faults + 1 %}
             {% endif %}
           {% endfor %}
@@ -91,9 +87,10 @@ template:
 ```
 
 The `availability` lines keep these sensors unavailable, and not wrongly off, while the device is
-offline. The codes are those shown in brackets in Active Errors. The "fault" example treats an ID with
-no description (`Unknown error`) as a fault, and the flags it ignores are the ones listed above. If a
-very long list is shortened with `...` (see Wording), a code at the end can be cut off and missed.
+offline. The IDs are those at the start of each entry. The "fault" example treats an ID with no
+description (`Unknown error`) as a fault, and the IDs it ignores are the status and warning flags listed
+above (97 is a status flag according to Zehnder's manual). If a very long list is shortened with `...`
+(see Wording), an entry at the end can be cut off and missed.
 
 ## Polling
 
@@ -114,12 +111,17 @@ The read is a single GET command and changes no setting.
 
 ## Wording
 
-Descriptions are worded as in section 9.5 "ComfoAirQ alarm codes" (Table 2) of Zehnder's
-ComfoConnect PRO Modbus installation manual (revision 137), as `<description> (<code>)`, so
-the same alarm can be looked up by number or code. Error IDs follow the firmware 1.4.0+
-numbering. The manual does not list IDs 63–65, 70–73 and 82–88; those keep the wording from
-the aiocomfoconnect protocol notes and are unverified. An ID with no description shows as
+Descriptions are the ERRORS table (firmware 1.4.0+ numbering) of
+[aiocomfoconnect](https://github.com/michaelarnauts/aiocomfoconnect) (`aiocomfoconnect/const.py`), used
+as written. They say which part failed, for example `The extract air fan has a malfunction (FAN_EHA ERROR)`,
+and some end with the code aiocomfoconnect uses for it. An ID with no description shows as
 `Unknown error`.
+
+Zehnder's ComfoConnect PRO Modbus installation manual (revision 137), section 9.5 "ComfoAirQ alarm
+codes" (Table 2), lists the same IDs and was used to cross-check them. It words many of them
+differently: it names sensors by designation (T11, P12, F12, ...) and in places gives a different
+meaning, for example ID 80 is "Service mode is active" here and "Standby is active" in the manual. The
+manual has no entry for IDs 63–65, 70–73 and 82–88, which rely on aiocomfoconnect alone.
 
 Home Assistant rejects entity states longer than 255 characters, so a very long list is
 shortened with `...`. The full text is logged at debug level.
