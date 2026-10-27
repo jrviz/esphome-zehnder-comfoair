@@ -17,6 +17,12 @@ deliberate: a filter change that is due keeps the sensor on as a reminder. To re
 them, match the code shown in Active Errors (for example `Filter_warning_flag`) in an automation or
 template sensor.
 
+ID 100 (`analysis_busy_warning`, "error analysis is in progress") is transient: the unit raises it
+while it checks its errors, after **Reset All Errors** and at power-up until its initialisation is
+complete, so Has Active Errors can be on briefly then. A reset does not clear warnings that describe
+a condition, such as the filter flag; those stay on until the condition is gone, for example after the
+filters are changed.
+
 ## Polling
 
 `error_poll_interval` sets how often the errors are read. The default is `5min`, with the first
