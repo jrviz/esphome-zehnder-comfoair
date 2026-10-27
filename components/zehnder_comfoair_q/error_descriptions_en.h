@@ -8,6 +8,9 @@
 // Its descriptions say which part failed (for example "extract air fan", "supply air temperature
 // sensor"), which is why it is preferred.
 //
+// These descriptions are copied from aiocomfoconnect, which is MIT licensed:
+// Copyright (c) 2022 Michaël Arnauts, https://github.com/michaelarnauts/aiocomfoconnect (see its LICENSE)
+//
 // Cross-checked against section 9.5 "ComfoAirQ alarm codes" (Table 2) of Zehnder's "ComfoConnect PRO
 // Modbus TCP/RTU installation" manual (revision 137): every ID the manual lists is in this table, but
 // the manual words some of them differently (it names sensors by designation, T11, P12, F12, ... and
