@@ -46,6 +46,55 @@ complete, so Has Active Errors can be on briefly then. A reset does not clear wa
 a condition, such as the filter flag; those stay on until the condition is gone, for example after the
 filters are changed.
 
+## Using the list in Home Assistant
+
+Several errors can be active at once, so Active Errors is one string with the entries in ID order,
+separated by `; ` (no description contains that separator). For anything more specific, build template
+sensors in Home Assistant from it. Replace the entity ID with yours, and add them to your Home
+Assistant configuration (not to the ESPHome device):
+
+```yaml
+template:
+  - binary_sensor:
+      # On while a filter change is due or about to be (IDs 79 and 77)
+      - name: "MVHR filter change due"
+        unique_id: mvhr_filter_change_due
+        device_class: problem
+        availability: "{{ states('sensor.zehnder_comfoair_q_active_errors') not in ['unknown', 'unavailable'] }}"
+        state: >
+          {% set t = states('sensor.zehnder_comfoair_q_active_errors') %}
+          {{ 'Filter_warning_flag' in t or 'Filter_alarm_flag' in t }}
+
+      # On only for real faults, ignoring the status and warning flags
+      - name: "MVHR fault"
+        unique_id: mvhr_fault
+        device_class: problem
+        availability: "{{ states('sensor.zehnder_comfoair_q_active_errors') not in ['unknown', 'unavailable'] }}"
+        state: >
+          {% set ignore = ['Filter_alarm_flag', 'Filter_ext_ERR', 'Filter_warning_flag', 'Standby_ERR',
+                           'T_22_MANUAL_ERR', 'IO_hood_duty_ERR', 'QM_Constraint_min_ERR', 'analysis_busy_warning'] %}
+          {% set ns = namespace(faults=0) %}
+          {% for entry in states('sensor.zehnder_comfoair_q_active_errors').split('; ') if entry != 'No active errors' %}
+            {% if not (ignore | select('in', entry) | list) %}
+              {% set ns.faults = ns.faults + 1 %}
+            {% endif %}
+          {% endfor %}
+          {{ ns.faults > 0 }}
+
+  - sensor:
+      # How many entries are active
+      - name: "MVHR active error count"
+        unique_id: mvhr_active_error_count
+        availability: "{{ states('sensor.zehnder_comfoair_q_active_errors') not in ['unknown', 'unavailable'] }}"
+        state: >
+          {{ states('sensor.zehnder_comfoair_q_active_errors').split('; ') | reject('eq', 'No active errors') | list | count }}
+```
+
+The `availability` lines keep these sensors unavailable, and not wrongly off, while the device is
+offline. The codes are those shown in brackets in Active Errors. The "fault" example treats an ID with
+no description (`Unknown error`) as a fault, and the flags it ignores are the ones listed above. If a
+very long list is shortened with `...` (see Wording), a code at the end can be cut off and missed.
+
 ## Polling
 
 `error_poll_interval` sets how often the errors are read. The default is `5min`, with the first
