@@ -10,6 +10,29 @@ The unit's active errors are read with RMI `GETACTIVEERRORS` (`80 03 01`) and ex
   the unit answers, reads the active errors straight back so the two entities above update
   at once. It does nothing on boot and only acts when pressed.
 
+## Including the package
+
+ESPHome Device Builder (remote package): list it next to your board's dashboard file.
+
+```yaml
+packages:
+  yoziru.esphome-zehnder-comfoair:
+    url: https://github.com/yoziru/esphome-zehnder-comfoair.git
+    ref: ${zehnder_comfoair_ref}
+    files:
+      - zehnder-comfoair-q-m5stack-atoms3.dashboard.yml
+      - packages/active_errors.yml
+```
+
+Local checkout (CLI): add it next to the base and board packages in your device file.
+
+```yaml
+packages:
+  base: !include packages/base.yml
+  device_base: !include boards/m5stack-atoms3.yml
+  active_errors: !include packages/active_errors.yml
+```
+
 **Warnings count.** Has Active Errors is on for every active entry, including the status and
 warning flags the unit raises as well as faults, for example the filter warnings (77–79), standby
 (80), bypass in manual mode (89), hood active (96) and the status flags 97 and 100. This is
@@ -49,6 +72,9 @@ numbering. The manual does not list IDs 63–65, 70–73 and 82–88; those keep
 the aiocomfoconnect protocol notes and are unverified. An ID with no description shows as
 `Unknown error`.
 
+Home Assistant rejects entity states longer than 255 characters, so a very long list is
+shortened with `...`. The full text is logged at debug level.
+
 ## Language
 
 English is the default. The language is a **compile-time** choice for devices with little
@@ -61,9 +87,6 @@ To add a language, copy `components/zehnder_comfoair_q/error_descriptions_en.h` 
 `error_descriptions_<code>.h` in the same folder (it must stay flat beside the other component
 files, as ESPHome's local component copy does not include subfolders), translate the strings, keep
 the `#ifdef` wrapper, and set `error_language: <code>`. No C++ changes are needed.
-
-Home Assistant rejects entity states longer than 255 characters, so a very long list is
-shortened with `...`. The full text is logged at debug level.
 
 ## Protocol
 
