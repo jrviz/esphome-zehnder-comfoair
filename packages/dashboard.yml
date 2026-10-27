@@ -3,6 +3,8 @@
 substitutions:
   # Set by the Device Builder configuration to a branch, tag, or commit SHA.
   zehnder_comfoair_ref: main
+  # Git repository the components are fetched from; override to test a fork.
+  zehnder_comfoair_repo: https://github.com/yoziru/esphome-zehnder-comfoair.git
   filter_time: 5s
   filter_send_every: "1"
   filter_window_size: "3"

@@ -3,6 +3,6 @@
 - components: [ zehnder_comfoair_q ]
   source:
     type: git
-    url: https://github.com/yoziru/esphome-zehnder-comfoair.git
+    url: ${zehnder_comfoair_repo}
     ref: ${zehnder_comfoair_ref}
     path: components
