@@ -17,9 +17,14 @@ class TestCanbus : public canbus::Canbus {
   void receive(uint16_t pdo, uint8_t value) { receive(pdo, std::vector<uint8_t>{value}); }
 
   void receive(uint16_t pdo, const std::vector<uint8_t> &data) {
+    receive_frame((uint32_t(pdo) << 14) | 0x41, data);
+  }
+
+  // Any extended frame, e.g. a RMI response rather than a PDO notification.
+  void receive_frame(uint32_t can_id, const std::vector<uint8_t> &data) {
     canbus::CanFrame frame{};
     frame.use_extended_id = true;
-    frame.can_id = (uint32_t(pdo) << 14) | 0x41;
+    frame.can_id = can_id;
     frame.can_data_length_code = data.size();
     std::copy(data.begin(), data.end(), frame.data);
     incoming_.push_back(frame);

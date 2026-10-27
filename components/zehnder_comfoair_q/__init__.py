@@ -1,10 +1,12 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
-from esphome.const import CONF_ID
+from esphome.components import binary_sensor, text_sensor
+from esphome.const import CONF_ID, ENTITY_CATEGORY_DIAGNOSTIC
 from esphome.components.canbus import CONF_CANBUS_ID, CanbusComponent, CanSpeed
 
 
 DEPENDENCIES = ["canbus"]
+AUTO_LOAD = ["binary_sensor", "text_sensor"]
 
 zehnder_comfoair_q_ns = cg.esphome_ns.namespace("zehnder_comfoair_q")
 ZehnderComfoAirQ = zehnder_comfoair_q_ns.class_("ZehnderComfoAirQ", cg.Component)
@@ -14,6 +16,12 @@ CONF_REQUEST_INTERVAL = "request_interval"
 CONF_REQUEST_IDS = "request_ids"
 CONF_REQUEST_DELAY = "request_delay"
 CONF_REQUEST_LOCAL_NODE_ID = "local_node_id"
+
+# Active errors (GETACTIVEERRORS) are opt-in via packages/active_errors.yml: nothing is polled unless
+# error_poll_interval is set, and the entities only exist if configured.
+CONF_ERROR_POLL_INTERVAL = "error_poll_interval"
+CONF_ACTIVE_ERRORS_TEXT_SENSOR = "active_errors_text_sensor"
+CONF_HAS_ACTIVE_ERRORS_BINARY_SENSOR = "has_active_errors_binary_sensor"
 
 
 CONFIG_SCHEMA = (
@@ -27,6 +35,15 @@ CONFIG_SCHEMA = (
             ),
             cv.Optional(CONF_REQUEST_DELAY, default="100ms"): cv.positive_time_period_milliseconds,
             cv.Optional(CONF_REQUEST_LOCAL_NODE_ID, default=0x2a): cv.int_range(min=0x01, max=0x3f),
+            cv.Optional(CONF_ERROR_POLL_INTERVAL): cv.update_interval,
+            cv.Optional(CONF_ACTIVE_ERRORS_TEXT_SENSOR): text_sensor.text_sensor_schema(
+                icon="mdi:alert-circle",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
+            cv.Optional(CONF_HAS_ACTIVE_ERRORS_BINARY_SENSOR): binary_sensor.binary_sensor_schema(
+                device_class="problem",
+                entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            ),
         }
     )
 )
@@ -45,3 +62,14 @@ async def to_code(config):
     cg.add(var.set_request_ids(config[CONF_REQUEST_IDS]))
     cg.add(var.set_request_delay(config[CONF_REQUEST_DELAY]))
     cg.add(var.set_local_node_id(config[CONF_REQUEST_LOCAL_NODE_ID]))
+
+    if CONF_ERROR_POLL_INTERVAL in config:
+        cg.add(var.set_error_poll_interval(config[CONF_ERROR_POLL_INTERVAL]))
+
+    if CONF_ACTIVE_ERRORS_TEXT_SENSOR in config:
+        sens = await text_sensor.new_text_sensor(config[CONF_ACTIVE_ERRORS_TEXT_SENSOR])
+        cg.add(var.set_active_errors_text_sensor(sens))
+
+    if CONF_HAS_ACTIVE_ERRORS_BINARY_SENSOR in config:
+        sens = await binary_sensor.new_binary_sensor(config[CONF_HAS_ACTIVE_ERRORS_BINARY_SENSOR])
+        cg.add(var.set_has_active_errors_binary_sensor(sens))

@@ -21,7 +21,8 @@ def run(climate):
     packages.append("airflow_constraints")
     packages.append("filter_lifetime")
     packages.append("temperature_profile_mode")
-    bus = yaml.safe_load((ROOT / "packages/canbus.yml").read_text())["canbus"][0]
+    packages.append("active_errors")
+    bus =yaml.safe_load((ROOT / "packages/canbus.yml").read_text())["canbus"][0]
     bus.update(platform="test_canbus", id="test_bus")
     del bus["tx_pin"], bus["rx_pin"]
     actions = [
@@ -114,6 +115,132 @@ def run(climate):
                 "completed request cycle can start again");
         '''},
     ])
+    actions.extend([
+        {"lambda": '''
+            using esphome::test_canbus::check;
+            auto &bus = *id(test_bus);
+            // RMI responses from the unit (node 1) to us (node 0x2a): 0x1f prefix, request bit clear.
+            const uint32_t unit_to_us = 0x1f000000u | (0x2au << 6) | 0x01;
+            const uint32_t unit_to_us_multi = unit_to_us | (1u << 14);
+            const uint32_t unit_to_us_error = unit_to_us | (1u << 15);
+            auto fragments = [](const std::vector<uint8_t> &payload) {
+                std::vector<std::vector<uint8_t>> frames;
+                for (size_t offset = 0, block = 0; offset < payload.size(); offset += 7, block++) {
+                    size_t length = std::min(size_t(7), payload.size() - offset);
+                    std::vector<uint8_t> frame{uint8_t(block | (offset + length == payload.size() ? 0x80 : 0))};
+                    frame.insert(frame.end(), payload.begin() + offset, payload.begin() + offset + length);
+                    frames.push_back(frame);
+                }
+                return frames;
+            };
+            auto errors = [](std::initializer_list<int> error_ids) {
+                std::vector<uint8_t> bits(32, 0);
+                for (int error_id : error_ids)
+                    bits[error_id / 8] |= 1 << (error_id % 8);
+                return bits;
+            };
+
+            bus.sent.clear();
+            id(comfoair).request_active_errors();
+            check(bus.sent.size() == 1 && bus.sent[0].can_data_length_code == 3 &&
+                  bus.sent[0].data[0] == 0x80 && bus.sent[0].data[1] == 0x03 && bus.sent[0].data[2] == 0x01 &&
+                  (bus.sent[0].can_id & 0x3f) == 0x2a && ((bus.sent[0].can_id >> 6) & 0x3f) == 1 &&
+                  ((bus.sent[0].can_id >> 16) & 1) == 1 && !bus.sent[0].remote_transmission_request,
+                  "GETACTIVEERRORS is a single 80 03 01 request frame to the unit");
+
+            auto frames = fragments(errors({21, 77}));
+            check(frames.size() == 5, "a 32 byte response is five fragments");
+            for (size_t i = 0; i < frames.size(); i++) {
+                bus.receive_frame(unit_to_us_multi, frames[i]);
+                if (i + 1 < frames.size())
+                    check(!id(active_errors).has_state(), "nothing is published before the last fragment");
+            }
+            check(id(active_errors).state ==
+                      "21: Two or more temperature sensors are out of boundaries (HRU_T_FIRE_ERR); "
+                      "77: Filters must be replaced now (Filter_alarm_flag)" &&
+                  id(has_active_errors).state,
+                  "a multi-frame response lists each active error and sets the problem sensor");
+
+            id(comfoair).request_active_errors();
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>(8, 0));
+            check(id(active_errors).state == "No active errors" && !id(has_active_errors).state,
+                  "a single-frame response with no bits set means no active errors");
+
+            id(comfoair).request_active_errors();
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>{0, 0, 0, 0, 0x10, 0, 0, 0});
+            check(id(active_errors).state == "36: Unknown error" && id(has_active_errors).state,
+                  "an ID without a description is reported as unknown");
+
+            id(comfoair).request_active_errors();
+            bus.receive_frame(unit_to_us_error, std::vector<uint8_t>{0x0b});
+            check(id(active_errors).state == "36: Unknown error",
+                  "a RMI error response publishes nothing");
+
+            // Requests are queued; responses for other nodes are ignored.
+            int done = 0;
+            bool ok1 = false, ok2 = false;
+            std::vector<uint8_t> first, second;
+            bus.sent.clear();
+            id(comfoair).send_rmi_request({0x01, 0x20, 0x01, 0x10, 0x03},
+                [&](bool ok, const std::vector<uint8_t> &r) { ok1 = ok; first = r; done++; });
+            id(comfoair).send_rmi_request({0x01, 0x20, 0x01, 0x10, 0x04},
+                [&](bool ok, const std::vector<uint8_t> &r) { ok2 = ok; second = r; done++; });
+            check(bus.sent.size() == 1, "a second request waits for the first to complete");
+            bus.receive_frame(0x1f000000u | (0x2bu << 6) | 0x01, std::vector<uint8_t>{0xee});
+            bus.receive_frame(0x1f000000u | (0x2au << 6) | 0x30, std::vector<uint8_t>{0xee});
+            check(done == 0 && bus.sent.size() == 1, "responses for another node or from another source are ignored");
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>{0x11, 0x22});
+            check(done == 1 && ok1 && first == std::vector<uint8_t>({0x11, 0x22}) &&
+                  bus.sent.size() == 2 && bus.sent[1].data[4] == 0x04,
+                  "the queued request is sent once the first completes");
+            bus.receive_frame(unit_to_us, std::vector<uint8_t>{0x33});
+            check(done == 2 && ok2 && second == std::vector<uint8_t>({0x33}),
+                  "the queued request gets its own response");
+
+            bool called = false, success = true;
+            id(comfoair).send_rmi_request({0x80, 0x03, 0x01},
+                [&](bool ok, const std::vector<uint8_t> &) { called = true; success = ok; });
+            bus.receive_frame(unit_to_us_multi, std::vector<uint8_t>{0x01, 0xaa});
+            check(called && !success, "a fragment out of order fails the request");
+            bus.receive_frame(unit_to_us_multi, std::vector<uint8_t>{0x80, 0xaa});  // late fragment, nothing in flight
+
+            // IDs 21, 35 and 39 make the text exceed 255 bytes right inside the two-byte phi of ID 39.
+            id(comfoair).request_active_errors();
+            for (const auto &frame : fragments(errors({21, 35, 39})))
+                bus.receive_frame(unit_to_us_multi, frame);
+            const std::string text = id(active_errors).state;
+            bool valid_utf8 = true;
+            for (size_t i = 0; i < text.size();) {
+                uint8_t c = text[i];
+                size_t n = c < 0x80 ? 1 : (c >> 5) == 0x6 ? 2 : (c >> 4) == 0xe ? 3 : (c >> 3) == 0x1e ? 4 : 0;
+                if (n == 0 || i + n > text.size()) {
+                    valid_utf8 = false;
+                    break;
+                }
+                for (size_t k = 1; k < n; k++)
+                    if ((uint8_t(text[i + k]) & 0xc0) != 0x80)
+                        valid_utf8 = false;
+                i += n;
+            }
+            check(text.size() <= 255 && text.size() > 3 && text.compare(text.size() - 3, 3, "...") == 0 && valid_utf8,
+                  "a state over 255 characters is shortened at a character boundary");
+        '''},
+        {"lambda": '''
+            id(rmi_timeout_result) = 0;
+            id(comfoair).send_rmi_request({0x80, 0x03, 0x01},
+                [](bool success, const std::vector<uint8_t> &) { id(rmi_timeout_result) = success ? 1 : 2; }, 200);
+        '''},
+        {"delay": "300ms"},
+        {"lambda": '''
+            using esphome::test_canbus::check;
+            auto &bus = *id(test_bus);
+            check(id(rmi_timeout_result) == 2, "an unanswered request fails after its timeout");
+            bus.sent.clear();
+            id(comfoair).request_active_errors();
+            check(bus.sent.size() == 1, "a timed out request does not block the next one");
+            bus.receive_frame(0x1f000000u | (0x2au << 6) | 0x01, std::vector<uint8_t>(8, 0));
+        '''},
+    ])
     actions.append({
         "lambda": '''
             esphome::test_canbus::check(global_preferences->sync(),
@@ -135,7 +262,9 @@ def run(climate):
             {"source": {"type": "local", "path": str(ROOT / "tests/components")}},
         ],
         "canbus": [bus],
-        "zehnder_comfoair_q": {"id": "comfoair", "canbus_id": "test_bus", "request_ids": [65, 67], "request_interval": "never"},
+        # error_poll_interval: never keeps the active errors poll timers out of the explicit RMI cases.
+        "zehnder_comfoair_q": {"id": "comfoair", "canbus_id": "test_bus", "request_ids": [65, 67], "request_interval": "never", "error_poll_interval": "never"},
+        "globals": [{"id": "rmi_timeout_result", "type": "int", "initial_value": "0"}],
     }
     if os.environ.get("ESPHOME_TEST_SANITIZE") == "1":
         config["esphome"]["platformio_options"] = {

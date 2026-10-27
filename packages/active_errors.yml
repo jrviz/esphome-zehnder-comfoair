@@ -1,0 +1,26 @@
+# Independently opt-in; the base package does not include this. Reads the unit's active errors
+# (RMI GETACTIVEERRORS) every error_poll_interval and exposes them to Home Assistant.
+substitutions:
+  comfoair_canbus_id: comfoair_canbus
+
+zehnder_comfoair_q:
+  error_poll_interval: 5min
+  active_errors_text_sensor:
+    id: active_errors
+    name: "Active Errors"
+  has_active_errors_binary_sensor:
+    id: has_active_errors
+    name: "Has Active Errors"
+
+canbus:
+  - id: !extend ${comfoair_canbus_id}
+    on_frame:
+      # RMI responses: 0x1F prefix in bits 24-28 with the IsRequest bit (bit 16) clear. The source,
+      # destination and fragmentation are decoded in C++, as local_node_id is only known at runtime.
+      - can_id: 0x1F000000
+        can_id_mask: 0x1F010000
+        use_extended_id: true
+        remote_transmission_request: false
+        then:
+          - lambda: |-
+              id(comfoair)->receive_rmi_frame(can_id, x);

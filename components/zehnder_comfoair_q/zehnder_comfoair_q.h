@@ -3,6 +3,8 @@
 #include <esphome.h>
 #include "airflow_constraints.h"
 #include <cmath>
+#include <deque>
+#include <functional>
 
 using namespace esphome; // needed for ESP_LOGx to work
 using namespace esphome::canbus;
@@ -10,6 +12,10 @@ using namespace esphome::canbus;
 namespace zehnder_comfoair_q
 {
     static const char *const TAG = "comfoairq";
+
+    // RMI units and ERROR unit commands (see PROTOCOL-RMI.md in aiocomfoconnect)
+    static const uint8_t RMI_UNIT_ERROR = 0x03;
+    static const uint8_t RMI_CMD_GET_ACTIVE_ERRORS = 0x80;
 
     enum VentilationLevel : uint8_t
     {
@@ -49,6 +55,9 @@ namespace zehnder_comfoair_q
     class ZehnderComfoAirQ : public PollingComponent
     {
     public:
+        // Invoked once a RMI response has been fully reassembled, has errored, or has timed out.
+        using RmiResponseCallback = std::function<void(bool success, const std::vector<uint8_t> &response)>;
+
         void setup() override;
         void update() override;
 
@@ -56,9 +65,14 @@ namespace zehnder_comfoair_q
         void set_request_ids(const std::vector<uint16_t> &request_ids) { request_ids_ = request_ids; }
         void set_request_delay(uint32_t request_delay) { request_delay_ = request_delay; }
         void set_local_node_id(uint8_t local_node_id) { local_node_id_ = local_node_id; }
+        // Polling is opt-in: it only runs when active errors are configured (see active_errors.yml).
+        void set_error_poll_interval(uint32_t error_poll_interval) { error_poll_interval_ = error_poll_interval; }
+        void set_active_errors_text_sensor(text_sensor::TextSensor *sensor) { active_errors_text_sensor_ = sensor; }
+        void set_has_active_errors_binary_sensor(binary_sensor::BinarySensor *sensor) { has_active_errors_binary_sensor_ = sensor; }
 
         void request_all_pdos();
         void request_pdo(uint16_t pdo_id);
+        void request_active_errors();
 
         void set_level(uint8_t level);
         void set_level_float(float state);
@@ -112,6 +126,17 @@ namespace zehnder_comfoair_q
             return true; // Valid request sent, not a device acknowledgement.
         }
         void send_command(const std::vector<uint8_t> &command);
+
+        // Sends a RMI request to the ventilation unit and calls `callback` once the (possibly
+        // multi-frame) response is reassembled. `callback` gets success=false on a protocol error
+        // response or if nothing arrives within `timeout_ms`. Requests are queued and sent one at a
+        // time. Responses are not correlated by sequence number, only by there being a single
+        // request in flight.
+        void send_rmi_request(const std::vector<uint8_t> &command, RmiResponseCallback callback, uint32_t timeout_ms = 2000);
+
+        // Feeds a CAN frame from the RMI response ID space into the framework (called from the
+        // canbus on_frame trigger in active_errors.yml). Frames not matching a request are ignored.
+        void receive_rmi_frame(uint32_t can_id, const std::vector<uint8_t> &data);
 
         // keep template functions in here to make sure they get implemented for all required types by being used from lambdas inside yaml
 
@@ -213,6 +238,28 @@ namespace zehnder_comfoair_q
         uint8_t command_sequence_number_ = 0;
 
         void send_can_message_(uint32_t can_id, bool remote_transmission_request, const std::vector<uint8_t> &data = {});
+
+        // Active errors (GETACTIVEERRORS), built on the RMI request/response framework below.
+        uint32_t error_poll_interval_ = 0;
+        text_sensor::TextSensor *active_errors_text_sensor_ = nullptr;
+        binary_sensor::BinarySensor *has_active_errors_binary_sensor_ = nullptr;
+        static std::string format_active_errors_(const std::vector<uint8_t> &data, std::vector<uint16_t> &active_error_ids);
+
+        // RMI request/response framework state: the front of the queue is the request in flight.
+        struct RmiRequest
+        {
+            std::vector<uint8_t> command;
+            RmiResponseCallback callback;
+            uint32_t timeout_ms;
+        };
+        std::deque<RmiRequest> rmi_request_queue_;
+        bool rmi_request_in_flight_ = false;
+        std::vector<uint8_t> rmi_response_buffer_;
+        uint8_t rmi_next_block_ = 0;
+        RmiResponseCallback rmi_current_callback_ = nullptr;
+
+        void rmi_send_next_request_();
+        void rmi_complete_request_(bool success);
     };
 }
 
