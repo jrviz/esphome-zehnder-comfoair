@@ -34,6 +34,10 @@ logger:
 ota:
   - platform: esphome
     password: $ota_password
+    # Encrypted OTA reuses the api encryption key. allow_plaintext_upload is a one-install
+    # bridge for devices that never encrypted; the next commit removes it and the password.
+    encryption:
+      allow_plaintext_upload: true
 
 # Same as CLI builds (base.yml): makes the Wi-Fi fallback AP usable.
 captive_portal:
